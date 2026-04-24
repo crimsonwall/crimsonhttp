@@ -1,6 +1,6 @@
 # Crimson HTTP
 
-**A beautiful, syntax-highlighted HTTP viewer for OWASP ZAP with automatic redaction and pentest-ready export.**
+**A syntax-highlighted HTTP viewer for OWASP ZAP with automatic redaction and export capabilities for penetration testing documentation.**
 
 ![Crimson HTTP](https://img.shields.io/badge/version-1.0.0--beta-red)
 ![ZAP](https://img.shields.io/badge/ZAP-2.17.0%2B-blue)
@@ -8,177 +8,121 @@
 
 ---
 
-## What is Crimson HTTP?
+## Overview
 
-Crimson HTTP is an OWASP ZAP add-on that transforms how you view and document HTTP traffic. It replaces ZAP's default plain text viewers with a rich, syntax-highlighted display that makes requests and responses instantly readable.
+Crimson HTTP is an OWASP ZAP add-on that provides enhanced viewing and documentation capabilities for HTTP traffic. It replaces ZAP's default plain text viewers with a syntax-highlighted display, improving readability of requests and responses during security assessments.
 
-**Gone are the days of squinting at monochromatic HTTP dumps.** Crimson HTTP color-codes headers, syntax-highlights JSON/XML bodies, and formats everything perfectly—right inside ZAP.
-
----
-
-## Why You Need It
-
-### You're a penetration tester who documents findings
-
-You've been there: hours into an assessment, you've found an interesting vulnerability, and now you need to document it for the client. You're copying raw HTTP from ZAP, pasting it into your report, and then spending valuable time manually:
-
-- Redacting API keys, tokens, and credentials by hand
-- Converting request/response pairs into Markdown or screenshots
-- Hunting through logs to reconstruct that one curl command
-
-**Crimson HTTP eliminates all of this friction.**
-
-### You work with APIs daily
-
-JSON responses come back minified and unreadable. XML is a wall of text. Headers run together in a jumbled mess. You need to see structure, spot anomalies, and understand what's actually happening—fast.
-
-Crimson HTTP pretty-prints JSON and XML automatically, highlights syntax, and makes patterns jump out at you.
+The add-on formats headers, JSON, and XML content with appropriate color coding, making it easier to identify patterns and anomalies during testing.
 
 ---
 
-## Why It's Amazing
+## Use Cases
 
-### 🎨 Beautiful Syntax Highlighting
+### Penetration Testing Documentation
 
-- **Color-coded headers**: Method, URI, version, and each header field gets distinct colors
-- **JSON formatting**: Auto-detects and pretty-prints with key/value highlighting
-- **XML formatting**: Pretty-prints XML with tag and attribute highlighting
-- **Status code colors**: 2xx (green), 3xx (yellow), 4xx (red), 5xx (dark red)
+Documenting vulnerabilities for clients requires accurate, properly formatted HTTP traffic data. Traditional workflows involve manual steps to prepare data for reports:
 
-### 🔒 Automatic Redaction (Pentest Game-Changer)
+- Redacting API keys, tokens, and credentials
+- Converting request/response pairs into documentation formats
+- Reconstructing cURL commands for reproduction
 
-**This is where Crimson HTTP transforms your workflow.**
+Crimson HTTP automates these tasks, reducing documentation overhead.
 
-During penetration tests, you capture requests containing real credentials, API tokens, session cookies, and other sensitive data. Including these in your report—unredacted—is a security violation.
+### API Analysis and Testing
 
-Crimson HTTP includes **18 built-in redaction rules** that automatically detect and mask sensitive patterns:
+Minified JSON responses and unformatted XML present challenges during analysis. Crimson HTTP automatically formats and syntax-highlights these content types, improving efficiency when working with APIs.
 
-- Authorization headers (Bearer, Basic, Digest, etc.)
+---
+
+## Features
+
+### Syntax Highlighting
+
+- **Color-coded headers**: HTTP method, URI, version, and header fields
+- **JSON formatting**: Automatic pretty-printing with key/value highlighting
+- **XML formatting**: Automatic pretty-printing with tag and attribute highlighting
+- **Status code colors**: Visual distinction for 2xx, 3xx, 4xx, and 5xx responses
+
+### Automatic Redaction
+
+Crimson HTTP includes 18 built-in redaction rules that detect and mask sensitive data patterns:
+
+- Authorization headers (Bearer, Basic, Digest, Negotiate, NTLM)
 - Cookie and Set-Cookie headers
 - JWT tokens
 - AWS/GCP/GitHub/GitLab API keys
 - Stripe secrets
-- Private keys
+- Private key blocks
 - Generic password/secret assignments
 
-**Toggle redaction on/off instantly.** Copy redacted content to your report with confidence. No more manual find-replace, no more accidental data leaks.
+Redaction can be toggled on/off, and custom regex patterns may be added through the configuration interface.
 
-### 📋 Pentest-Ready Export
+### Export Capabilities
 
-One click and you have **publication-ready content** for your report:
+#### Markdown Export
+Requests and responses can be copied as formatted Markdown for inclusion in technical reports, bug bounty submissions, and client deliverables.
 
-#### Copy as Markdown
-```
-## Request
-
-```http
-POST /api/v1/users HTTP/1.1
-Host: example.com
-Content-Type: application/json
-Authorization: Bearer **REDACTED**
-```
-
-```json
-{
-  "username": "test@example.com",
-  "password": "**REDACTED**"
-}
-```
-
-## Response
-
-```http
-HTTP/1.1 201 Created
-Content-Type: application/json
-```
-
-```json
-{
-  "id": 12345,
-  "status": "created"
-}
-```
-```
-
-**Perfect for:**
-- Technical writeups
-- Bug bounty submissions
-- Client deliverables
-- Documentation
-
-#### Copy as cURL
-```bash
-curl -X POST -H 'Content-Type: application/json' -H 'Authorization: Bearer **REDACTED**' -d '{"username":"test@example.com","password":"**REDACTED**"}' 'https://example.com/api/v1/users'
-```
-
-**Reproduce issues instantly** without exposing credentials.
+#### cURL Export
+Requests can be exported as cURL commands (with redaction applied) for issue reproduction.
 
 #### Screenshot Capture
-- **Single pane**: Just request or just response
-- **Both panes**: Request and response side-by-side
-- **Light or dark mode**: Match your report's aesthetic
-- **Copy to clipboard or save to file**: Drag directly into your report
+- Single-pane or dual-pane capture options
+- Light and dark mode options
+- Clipboard or file export
+- Configurable redaction for screenshots
 
-### 🔄 Flexible Layout
-- **Horizontal**: Request left, response right
-- **Vertical**: Request top, response bottom
-- **Resizable divider**: Drag to your preferred split
-- **Persistent**: Remembers your layout across ZAP sessions
+### Interface Options
 
-### ⚡ Request Editor Integration
-Right-click any request → "Resend in Request Editor" to modify and replay with ZAP's manual request editor.
+- **Layout modes**: Horizontal (side-by-side) or vertical (stacked) arrangement
+- **Resizable divider**: Adjustable split position
+- **Persistent preferences**: Layout and position settings saved across sessions
+
+### Integration
+
+Requests can be opened in ZAP's Request Editor via context menu for modification and replay.
 
 ---
 
 ## Installation
 
-### From ZAP Marketplace (Recommended)
+### From ZAP Marketplace
 
 1. Open OWASP ZAP
-2. Go to **Manage Add-ons**
+2. Navigate to **Manage Add-ons**
 3. Search for **Crimson HTTP**
 4. Click **Install**
 
 ### Manual Installation
 
 1. Download the latest `.zap` file from [Releases](https://github.com/crimsonwall/crimsonhttp/releases)
-2. In ZAP, go to **Manage Add-ons** → **Install**
-3. Browse to the downloaded file and install
+2. In ZAP, navigate to **Manage Add-ons** → **Install**
+3. Select the downloaded file
 
 ---
 
 ## Building From Source
 
-Want to build Crimson HTTP yourself? You'll need:
+### Requirements
 
 - Java 17 or higher
 - Gradle 8.13+ (included via Gradle Wrapper)
 
+### Build Instructions
+
 ```bash
-# Clone the repository
 git clone https://github.com/crimsonwall/crimsonhttp.git
 cd crimsonhttp
-
-# Build the add-on
 ./gradlew build
-
-# Find the generated .zap file
-ls build/zapAddOn/bin/
 ```
 
-The build produces `crimsonhttp-release-1.0.0.zap` in `build/zapAddOn/bin/`.
+The output file `crimsonhttp-release-1.0.0.zap` is located in `build/zapAddOn/bin/`.
 
-### Build Options
+### Additional Build Options
 
 ```bash
-# Clean build
-./gradlew clean build
-
-# Skip tests
-./gradlew build -x test
-
-# Build and install to local ZAP
-./gradlew installZapAddOn
+./gradlew clean build     # Clean build
+./gradlew build -x test    # Skip tests
+./gradlew installZapAddOn  # Install to local ZAP instance
 ```
 
 ---
@@ -187,90 +131,64 @@ The build produces `crimsonhttp-release-1.0.0.zap` in `build/zapAddOn/bin/`.
 
 ### Redaction Rules
 
-Go to **Tools → Options → Crimson HTTP → Redaction** to:
+Access via **Tools → Options → Crimson HTTP → Redaction**:
 
-- Enable/disable redaction globally
-- Customize replacement text (default: `**REDACTED**`)
-- Toggle individual rules on/off
-- Add custom regex patterns
+- Global redaction enable/disable
+- Replacement text customization (default: `**REDACTED**`)
+- Individual rule toggle
+- Custom regex pattern addition
 
 ### Screenshot Preferences
 
-- **Light mode screenshots**: For reports with white backgrounds
-- **Optimize space**: Tighter cropping vs. consistent sizing
-- **Redact screenshots**: Apply redaction rules to screenshots
+- Light/dark mode selection
+- Space optimization options
+- Screenshot redaction toggle
 
 ---
 
-## Why Crimson HTTP is Perfect for Pentest Documentation
+## Documentation Workflow
 
-### 1. **Safety First: Automatic Redaction**
+### 1. Automatic Redaction
 
-During a penetration test, you might intercept:
+Unredacted request:
 ```
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 Cookie: session=abc123def456; user_id=12345
 ```
 
-**With Crimson HTTP redaction enabled:**
+With redaction enabled:
 ```
 Authorization: Bearer **REDACTED**
 Cookie: session=**REDACTED**
 ```
 
-**One click.** No manual editing. No accidental credential leaks in your report.
+### 2. Markdown Export
 
-### 2. **Copy-Paste Ready**
+Right-click context menu provides "Copy as Markdown" option, producing formatted output suitable for technical documentation.
 
-Your report template needs formatted HTTP. You could:
+### 3. Screenshot Documentation
 
-**Option A:** Spend 20 minutes manually formatting raw ZAP output.
+Screenshots can be captured in light or dark mode, with optional redaction applied. Output can be saved to file or copied to clipboard for direct inclusion in reports.
 
-**Option B:** Right-click → "Copy as Markdown" → Paste. Done in 2 seconds.
+### 4. cURL Export
 
-### 3. **Professional Screenshots**
+Requests can be exported as cURL commands with redaction applied, enabling reproduction without exposing sensitive data.
 
-Sometimes you need visual evidence. Screenshots from ZAP's default viewer look dated and are hard to read.
+### 5. Layout Customization
 
-Crimson HTTP screenshots are:
-- Clean and modern
-- Syntax-highlighted for readability
-- Available in light/dark mode
-- Properly sized and formatted
-
-Drag them straight into Word, PowerPoint, or your bug report.
-
-### 4. **cURL for Reproducibility**
-
-Clients love it when they can reproduce findings. Copy the request as cURL (redacted, of course), and they can run it themselves:
-
-```bash
-curl -X POST -H 'Authorization: Bearer **REDACTED**' 'https://api.example.com/v1/users'
-```
-
-### 5. **Layout for Your Workflow**
-
-Prefer seeing request and response stacked while analyzing vertical JSON structures? Switch to vertical.
-
-Need to compare headers side-by-side? Switch to horizontal.
-
-Crimson HTTP adapts to how *you* work.
+Horizontal and vertical layout options accommodate different analysis workflows and screen configurations.
 
 ---
 
 ## Screenshots
 
-*(Add screenshots here showing: dark mode syntax highlighting, redaction in action, Markdown export, screenshot dialog)*
+*(Screenshots to be added: syntax highlighting, redaction interface, export options)*
 
 ---
 
 ## Contributing
 
-Found a bug? Have a feature idea? We'd love to hear from you!
-
-1. Check existing [Issues](https://github.com/crimsonwall/crimsonhttp/issues)
-2. Open a new issue with details
-3. Pull requests are welcome!
+Bug reports and feature requests are welcome via the [issue tracker](https://github.com/crimsonwall/crimsonhttp/issues). Pull requests are accepted.
 
 ---
 
@@ -282,10 +200,4 @@ Apache License 2.0 © 2026 [Crimson Wall](https://crimsonwall.com)
 
 ## Author
 
-**Renico Koen** / [Crimson Wall](https://crimsonwall.com)
-
----
-
-**Stop wrestling with raw HTTP. Start seeing clearly.**
-
-Install Crimson HTTP and transform your ZAP experience today.
+Renico Koen / [Crimson Wall](https://crimsonwall.com)
