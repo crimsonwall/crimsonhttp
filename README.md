@@ -22,7 +22,6 @@ Crimson HTTP is an OWASP ZAP add-on that transforms how you view and document HT
 
 You've been there: hours into an assessment, you've found an interesting vulnerability, and now you need to document it for the client. You're copying raw HTTP from ZAP, pasting it into your report, and then spending valuable time manually:
 
-- Formatting the mess into something readable
 - Redacting API keys, tokens, and credentials by hand
 - Converting request/response pairs into Markdown or screenshots
 - Hunting through logs to reconstruct that one curl command
