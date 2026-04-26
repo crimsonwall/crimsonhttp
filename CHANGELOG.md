@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0-beta] - 2026-04-24
 
 ### Added
-- Initial release of Crimson HTTP for Zap
+- Initial release of Crimson HTTP for ZAP
 - Beautiful syntax-highlighted HTTP request/response viewer
 - Color-coded headers and status codes (2xx/3xx/4xx/5xx)
 - Automatic JSON and XML pretty-printing

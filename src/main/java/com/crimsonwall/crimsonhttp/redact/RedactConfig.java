@@ -1,5 +1,5 @@
 /*
- * Crimson HTTP - HTTP Request/Response Viewer for Zap.
+ * Crimson HTTP - HTTP Request/Response Viewer for ZAP.
  *
  * Renico Koen / Crimson Wall / 2026
  *
