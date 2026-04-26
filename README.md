@@ -1,6 +1,6 @@
 # Crimson HTTP
 
-**A syntax-highlighted HTTP viewer for OWASP ZAP with automatic redaction and export capabilities for penetration testing documentation.**
+**A syntax-highlighted HTTP viewer for Zap with automatic redaction and export capabilities for penetration testing documentation.**
 
 ![Crimson HTTP](https://img.shields.io/badge/version-1.0.0--beta-red)
 ![ZAP](https://img.shields.io/badge/ZAP-2.17.0%2B-blue)
@@ -10,7 +10,7 @@
 
 ## Overview
 
-Crimson HTTP is an OWASP ZAP add-on that provides enhanced viewing and documentation capabilities for HTTP traffic. It replaces ZAP's default plain text viewers with a syntax-highlighted display, improving readability of requests and responses during security assessments.
+Crimson HTTP is an Zap add-on that provides enhanced viewing and documentation capabilities for HTTP traffic. It replaces ZAP's default plain text viewers with a syntax-highlighted display, improving readability of requests and responses during security assessments.
 
 The add-on formats headers, JSON, and XML content with appropriate color coding, making it easier to identify patterns and anomalies during testing.
 
@@ -87,7 +87,7 @@ Requests can be opened in ZAP's Request Editor via context menu for modification
 
 ### From ZAP Marketplace
 
-1. Open OWASP ZAP
+1. Open Zap
 2. Navigate to **Manage Add-ons**
 3. Search for **Crimson HTTP**
 4. Click **Install**

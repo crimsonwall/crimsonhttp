@@ -1,5 +1,5 @@
 /*
- * Crimson HTTP - HTTP Request/Response Viewer for OWASP ZAP.
+ * Crimson HTTP - HTTP Request/Response Viewer for Zap.
  *
  * Renico Koen / Crimson Wall / 2026
  *
