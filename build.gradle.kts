@@ -15,7 +15,7 @@ zapAddOn {
 
     manifest {
         zapVersion.set("2.17.0")
-        author.set("CrimsonWall")
+        author.set("Renico Koen / CrimsonWall")
         url.set("https://github.com/crimsonwall/crimsonhttp")
         extensions {
             register("com.crimsonwall.crimsonhttp.ExtensionCrimsonHttp")
