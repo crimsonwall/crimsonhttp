@@ -70,6 +70,7 @@ public class OptionsRedactPanel extends AbstractParamPanel {
     private JCheckBox screenshotCheckBox;
     private JCheckBox lightModeCheckBox;
     private JCheckBox optimizeSpaceCheckBox;
+    private JTextField maxWidthField;
     private RedactTableModel tableModel;
     private JTable redactTable;
 
@@ -157,6 +158,30 @@ public class OptionsRedactPanel extends AbstractParamPanel {
         optimizeSpaceCheckBox.setToolTipText(
                 Constant.messages.getString("crimsonhttp.options.optimizespace.tooltip"));
         generalPanel.add(optimizeSpaceCheckBox, gc);
+
+        // Max screenshot width
+        gc.gridy = ++row;
+        gc.gridwidth = 1;
+        gc.gridx = 0;
+        gc.weightx = 0.0;
+        gc.insets = new Insets(0, 4, 4, 4);
+        JLabel maxWidthLabel =
+                new JLabel(Constant.messages.getString("crimsonhttp.options.maxwidth"));
+        maxWidthLabel.setToolTipText(
+                Constant.messages.getString("crimsonhttp.options.maxwidth.tooltip"));
+        generalPanel.add(maxWidthLabel, gc);
+
+        gc.gridx = 1;
+        gc.weightx = 1.0;
+        gc.insets = new Insets(0, 4, 4, 4);
+        maxWidthField = new JTextField(String.valueOf(RedactConfig.DEFAULT_SCREENSHOT_MAX_WIDTH), 8);
+        maxWidthField.setToolTipText(
+                Constant.messages.getString("crimsonhttp.options.maxwidth.tooltip"));
+        maxWidthLabel.setLabelFor(maxWidthField);
+        generalPanel.add(maxWidthField, gc);
+
+        gc.gridwidth = 2;
+        gc.gridx = 0;
 
         // Replacement text field
         gc.gridy = ++row;
@@ -381,6 +406,7 @@ public class OptionsRedactPanel extends AbstractParamPanel {
         screenshotCheckBox.setSelected(config.isRedactScreenshots());
         lightModeCheckBox.setSelected(config.isLightModeScreenshots());
         optimizeSpaceCheckBox.setSelected(config.isOptimizeScreenshotSpace());
+        maxWidthField.setText(String.valueOf(config.getScreenshotMaxWidth()));
         tableModel.setEntries(config.getEntries());
     }
 
@@ -393,6 +419,20 @@ public class OptionsRedactPanel extends AbstractParamPanel {
         config.setRedactScreenshots(screenshotCheckBox.isSelected());
         config.setLightModeScreenshots(lightModeCheckBox.isSelected());
         config.setOptimizeScreenshotSpace(optimizeSpaceCheckBox.isSelected());
+
+        int maxWidth;
+        try {
+            maxWidth = Integer.parseInt(maxWidthField.getText().trim());
+        } catch (NumberFormatException e) {
+            maxWidth = -1;
+        }
+        if (maxWidth < RedactConfig.MIN_SCREENSHOT_MAX_WIDTH
+                || maxWidth > RedactConfig.MAX_SCREENSHOT_MAX_WIDTH) {
+            throw new IllegalArgumentException(
+                    Constant.messages.getString("crimsonhttp.options.maxwidth.invalid"));
+        }
+        config.setScreenshotMaxWidth(maxWidth);
+
         config.setEntries(new ArrayList<>(tableModel.getEntries()));
         config.save();
         config.saveEntries();

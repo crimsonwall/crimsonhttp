@@ -1085,6 +1085,7 @@ public class CrimsonHttpPanel extends AbstractPanel {
         RedactConfig displayConfig = extension.getRedactConfig();
         boolean lightMode = displayConfig.isLightModeScreenshots();
         boolean optimizeSpace = displayConfig.isOptimizeScreenshotSpace();
+        int maxWidth = displayConfig.getScreenshotMaxWidth();
 
         HttpMessageRenderer screenshotRenderer = buildScreenshotRenderer(displayConfig, lightMode);
 
@@ -1106,28 +1107,24 @@ public class CrimsonHttpPanel extends AbstractPanel {
         int padding = 8;
         int headerHeight = 24;
         int dividerWidth = 4;
-        int measureWidth = 1200;
 
-        offReq.setSize(measureWidth, Integer.MAX_VALUE);
-        offResp.setSize(measureWidth, Integer.MAX_VALUE);
+        // Measure content at the max available width to determine preferred sizes
+        offReq.setSize(maxWidth, Integer.MAX_VALUE);
+        offResp.setSize(maxWidth, Integer.MAX_VALUE);
 
         int reqWidth, respWidth, reqHeight, respHeight, imageWidth, imageHeight;
 
         if (horizontal) {
+            int contentWidth = maxWidth - padding * 2 - dividerWidth;
             if (optimizeSpace) {
-                reqWidth = Math.max(Math.min(offReq.getPreferredSize().width, 1200), 300);
-                respWidth = Math.max(Math.min(offResp.getPreferredSize().width, 1200), 300);
+                int halfContent = contentWidth / 2;
+                int reqOptimal =
+                        Math.max(Math.min(offReq.getPreferredSize().width, halfContent), 300);
+                reqWidth = Math.min(reqOptimal, halfContent);
+                respWidth = contentWidth - reqWidth;
             } else {
-                int halfWidth =
-                        Math.max(
-                                Math.min(
-                                        Math.max(
-                                                offReq.getPreferredSize().width,
-                                                offResp.getPreferredSize().width),
-                                        1200),
-                                400);
-                reqWidth = halfWidth;
-                respWidth = halfWidth;
+                reqWidth = contentWidth / 2;
+                respWidth = contentWidth / 2;
             }
             offReq.setSize(reqWidth, Integer.MAX_VALUE);
             offResp.setSize(respWidth, Integer.MAX_VALUE);
@@ -1139,28 +1136,15 @@ public class CrimsonHttpPanel extends AbstractPanel {
                     Math.min(
                             offResp.getPreferredSize().height,
                             MAX_SCREENSHOT_HEIGHT - headerHeight - padding * 2);
-            imageWidth =
-                    Math.min(
-                            padding + reqWidth + dividerWidth + respWidth + padding,
-                            MAX_SCREENSHOT_HEIGHT);
+            imageWidth = maxWidth;
             imageHeight =
                     Math.min(
                             padding + headerHeight + Math.max(reqHeight, respHeight) + padding,
                             MAX_SCREENSHOT_HEIGHT);
         } else {
-            if (optimizeSpace) {
-                reqWidth = Math.max(Math.min(offReq.getPreferredSize().width, 1200), 300);
-                respWidth = Math.max(Math.min(offResp.getPreferredSize().width, 1200), 300);
-            } else {
-                int fullWidth =
-                        Math.min(
-                                Math.max(
-                                        offReq.getPreferredSize().width,
-                                        offResp.getPreferredSize().width),
-                                1200);
-                reqWidth = fullWidth;
-                respWidth = fullWidth;
-            }
+            int contentWidth = maxWidth - padding * 2;
+            reqWidth = contentWidth;
+            respWidth = contentWidth;
             offReq.setSize(reqWidth, Integer.MAX_VALUE);
             offResp.setSize(respWidth, Integer.MAX_VALUE);
             reqHeight =
@@ -1171,7 +1155,7 @@ public class CrimsonHttpPanel extends AbstractPanel {
                     Math.min(
                             offResp.getPreferredSize().height,
                             8192 - headerHeight - padding);
-            imageWidth = Math.max(reqWidth, respWidth) + padding * 2;
+            imageWidth = maxWidth;
             imageHeight =
                     Math.min(
                             padding
@@ -1261,6 +1245,7 @@ public class CrimsonHttpPanel extends AbstractPanel {
         RedactConfig displayConfig = extension.getRedactConfig();
         boolean lightMode = displayConfig.isLightModeScreenshots();
         boolean optimizeSpace = displayConfig.isOptimizeScreenshotSpace();
+        int maxWidth = displayConfig.getScreenshotMaxWidth();
 
         HttpMessageRenderer screenshotRenderer = buildScreenshotRenderer(displayConfig, lightMode);
 
@@ -1277,16 +1262,18 @@ public class CrimsonHttpPanel extends AbstractPanel {
                     doc, msg.getResponseHeader(), (HttpBody) msg.getResponseBody());
         }
 
-        offPane.setSize(1200, Integer.MAX_VALUE);
+        int padding = 8;
+        int headerHeight = 24;
+        int contentWidth = maxWidth - padding * 2;
+
+        offPane.setSize(contentWidth, Integer.MAX_VALUE);
         int paneWidth =
                 optimizeSpace
-                        ? Math.max(Math.min(offPane.getPreferredSize().width, 1200), 300)
-                        : 1200;
+                        ? Math.max(Math.min(offPane.getPreferredSize().width, contentWidth), 300)
+                        : contentWidth;
         offPane.setSize(paneWidth, Integer.MAX_VALUE);
         int paneHeight = Math.min(offPane.getPreferredSize().height, 16352);
 
-        int padding = 8;
-        int headerHeight = 24;
         int imageWidth = paneWidth + padding * 2;
         int imageHeight = Math.min(padding + headerHeight + paneHeight + padding, MAX_SCREENSHOT_HEIGHT);
 

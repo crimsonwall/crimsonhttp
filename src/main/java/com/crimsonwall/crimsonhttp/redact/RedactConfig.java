@@ -45,8 +45,12 @@ public class RedactConfig {
     private static final String KEY_SCREENSHOT = "autoRedact.redactScreenshots";
     private static final String KEY_LIGHT_MODE = "autoRedact.lightModeScreenshots";
     private static final String KEY_OPTIMIZE_SPACE = "autoRedact.optimizeScreenshotSpace";
+    private static final String KEY_SCREENSHOT_MAX_WIDTH = "autoRedact.screenshotMaxWidth";
 
     private static final String DEFAULT_REPLACEMENT = "[redacted]";
+    public static final int DEFAULT_SCREENSHOT_MAX_WIDTH = 1000;
+    public static final int MIN_SCREENSHOT_MAX_WIDTH = 200;
+    public static final int MAX_SCREENSHOT_MAX_WIDTH = 4096;
 
     private final File configFile =
             new File(new File(Constant.getZapHome(), CONFIG_DIR), CONFIG_FILE);
@@ -58,6 +62,7 @@ public class RedactConfig {
     private volatile boolean redactScreenshots;
     private volatile boolean lightModeScreenshots;
     private volatile boolean optimizeScreenshotSpace;
+    private volatile int screenshotMaxWidth;
     private volatile List<RedactEntry> entries;
     private volatile List<RedactEntry> cachedActiveEntries;
 
@@ -70,6 +75,7 @@ public class RedactConfig {
         this.redactScreenshots = false;
         this.lightModeScreenshots = true;
         this.optimizeScreenshotSpace = false;
+        this.screenshotMaxWidth = DEFAULT_SCREENSHOT_MAX_WIDTH;
         this.entries = new ArrayList<>();
     }
 
@@ -89,6 +95,12 @@ public class RedactConfig {
             this.redactScreenshots = config.getBoolean(KEY_SCREENSHOT, false);
             this.lightModeScreenshots = config.getBoolean(KEY_LIGHT_MODE, true);
             this.optimizeScreenshotSpace = config.getBoolean(KEY_OPTIMIZE_SPACE, false);
+            this.screenshotMaxWidth =
+                    Math.max(
+                            MIN_SCREENSHOT_MAX_WIDTH,
+                            Math.min(
+                                    config.getInt(KEY_SCREENSHOT_MAX_WIDTH, DEFAULT_SCREENSHOT_MAX_WIDTH),
+                                    MAX_SCREENSHOT_MAX_WIDTH));
         } catch (ConfigurationException e) {
             LOGGER.warn("Failed to load redact config from {}", configFile.getAbsolutePath(), e);
         }
@@ -116,6 +128,7 @@ public class RedactConfig {
             config.setProperty(KEY_SCREENSHOT, Boolean.valueOf(redactScreenshots));
             config.setProperty(KEY_LIGHT_MODE, Boolean.valueOf(lightModeScreenshots));
             config.setProperty(KEY_OPTIMIZE_SPACE, Boolean.valueOf(optimizeScreenshotSpace));
+            config.setProperty(KEY_SCREENSHOT_MAX_WIDTH, Integer.valueOf(screenshotMaxWidth));
             config.save(configFile);
         } catch (ConfigurationException e) {
             LOGGER.error("Failed to save redact config to {}", configFile.getAbsolutePath(), e);
@@ -175,6 +188,17 @@ public class RedactConfig {
     /** @param optimizeScreenshotSpace whether screenshots should minimise wasted whitespace */
     public void setOptimizeScreenshotSpace(boolean optimizeScreenshotSpace) {
         this.optimizeScreenshotSpace = optimizeScreenshotSpace;
+    }
+
+    /** @return the maximum total width (in pixels) for screenshot images */
+    public int getScreenshotMaxWidth() {
+        return screenshotMaxWidth;
+    }
+
+    /** @param width the maximum total width (in pixels) for screenshot images */
+    public void setScreenshotMaxWidth(int width) {
+        this.screenshotMaxWidth =
+                Math.max(MIN_SCREENSHOT_MAX_WIDTH, Math.min(width, MAX_SCREENSHOT_MAX_WIDTH));
     }
 
     /**
