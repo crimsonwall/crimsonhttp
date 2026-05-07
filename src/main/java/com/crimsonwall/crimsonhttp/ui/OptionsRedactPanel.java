@@ -58,18 +58,19 @@ import org.parosproxy.paros.view.AbstractParamPanel;
  *   <li>The list of regex redaction rules via an editable table
  * </ul>
  */
-public class OptionsRedactPanel extends AbstractParamPanel {
+public final class OptionsRedactPanel extends AbstractParamPanel {
 
     private static final long serialVersionUID = 1L;
     private static final int MAX_REGEX_RULES = 200;
 
-    private final ExtensionCrimsonHttp extension;
+    private final transient ExtensionCrimsonHttp extension;
 
     private JCheckBox enableCheckBox;
     private JTextField replacementField;
     private JCheckBox screenshotCheckBox;
     private JCheckBox lightModeCheckBox;
     private JCheckBox optimizeSpaceCheckBox;
+    private JCheckBox truncateLinesCheckBox;
     private JTextField maxWidthField;
     private RedactTableModel tableModel;
     private JTable redactTable;
@@ -158,6 +159,14 @@ public class OptionsRedactPanel extends AbstractParamPanel {
         optimizeSpaceCheckBox.setToolTipText(
                 Constant.messages.getString("crimsonhttp.options.optimizespace.tooltip"));
         generalPanel.add(optimizeSpaceCheckBox, gc);
+
+        gc.gridy = ++row;
+        gc.insets = new Insets(0, 4, 4, 4);
+        truncateLinesCheckBox =
+                new JCheckBox(Constant.messages.getString("crimsonhttp.options.truncatelines"));
+        truncateLinesCheckBox.setToolTipText(
+                Constant.messages.getString("crimsonhttp.options.truncatelines.tooltip"));
+        generalPanel.add(truncateLinesCheckBox, gc);
 
         // Max screenshot width
         gc.gridy = ++row;
@@ -406,6 +415,7 @@ public class OptionsRedactPanel extends AbstractParamPanel {
         screenshotCheckBox.setSelected(config.isRedactScreenshots());
         lightModeCheckBox.setSelected(config.isLightModeScreenshots());
         optimizeSpaceCheckBox.setSelected(config.isOptimizeScreenshotSpace());
+        truncateLinesCheckBox.setSelected(config.isScreenshotTruncateLines());
         maxWidthField.setText(String.valueOf(config.getScreenshotMaxWidth()));
         tableModel.setEntries(config.getEntries());
     }
@@ -419,6 +429,7 @@ public class OptionsRedactPanel extends AbstractParamPanel {
         config.setRedactScreenshots(screenshotCheckBox.isSelected());
         config.setLightModeScreenshots(lightModeCheckBox.isSelected());
         config.setOptimizeScreenshotSpace(optimizeSpaceCheckBox.isSelected());
+        config.setScreenshotTruncateLines(truncateLinesCheckBox.isSelected());
 
         int maxWidth;
         try {
@@ -458,7 +469,7 @@ public class OptionsRedactPanel extends AbstractParamPanel {
             Constant.messages.getString("crimsonhttp.options.regex.col.enabled")
         };
 
-        private List<RedactEntry> entries = new ArrayList<>();
+        private transient List<RedactEntry> entries = new ArrayList<>();
 
         @Override
         public int getRowCount() {
@@ -564,6 +575,8 @@ public class OptionsRedactPanel extends AbstractParamPanel {
 
     private static class RegexCellEditor extends AbstractCellEditor implements TableCellEditor {
 
+        private static final long serialVersionUID = 1L;
+
         private final JTextField field = new JTextField();
 
         @Override
@@ -580,6 +593,8 @@ public class OptionsRedactPanel extends AbstractParamPanel {
     }
 
     private static class CheckboxRenderer extends JCheckBox implements TableCellRenderer {
+
+        private static final long serialVersionUID = 1L;
 
         CheckboxRenderer() {
             setHorizontalAlignment(CENTER);
@@ -600,6 +615,8 @@ public class OptionsRedactPanel extends AbstractParamPanel {
     }
 
     private static class CheckboxEditor extends AbstractCellEditor implements TableCellEditor {
+
+        private static final long serialVersionUID = 1L;
 
         private final JCheckBox checkbox = new JCheckBox();
 

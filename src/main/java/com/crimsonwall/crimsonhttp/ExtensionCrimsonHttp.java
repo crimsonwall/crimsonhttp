@@ -41,7 +41,7 @@ import org.zaproxy.zap.utils.DisplayUtils;
  * <p>Registers the {@link CrimsonHttpPanel} as a work panel and hooks into ZAP's
  * request/response display events to render messages as they are selected.
  */
-public class ExtensionCrimsonHttp extends ExtensionAdaptor {
+public final class ExtensionCrimsonHttp extends ExtensionAdaptor {
 
     private static final Logger LOGGER = LogManager.getLogger(ExtensionCrimsonHttp.class);
 

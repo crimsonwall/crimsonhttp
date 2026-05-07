@@ -46,6 +46,7 @@ public class RedactConfig {
     private static final String KEY_LIGHT_MODE = "autoRedact.lightModeScreenshots";
     private static final String KEY_OPTIMIZE_SPACE = "autoRedact.optimizeScreenshotSpace";
     private static final String KEY_SCREENSHOT_MAX_WIDTH = "autoRedact.screenshotMaxWidth";
+    private static final String KEY_SCREENSHOT_TRUNCATE = "autoRedact.screenshotTruncateLines";
 
     private static final String DEFAULT_REPLACEMENT = "[redacted]";
     public static final int DEFAULT_SCREENSHOT_MAX_WIDTH = 1000;
@@ -63,6 +64,7 @@ public class RedactConfig {
     private volatile boolean lightModeScreenshots;
     private volatile boolean optimizeScreenshotSpace;
     private volatile int screenshotMaxWidth;
+    private volatile boolean screenshotTruncateLines;
     private volatile List<RedactEntry> entries;
     private volatile List<RedactEntry> cachedActiveEntries;
 
@@ -76,6 +78,7 @@ public class RedactConfig {
         this.lightModeScreenshots = true;
         this.optimizeScreenshotSpace = false;
         this.screenshotMaxWidth = DEFAULT_SCREENSHOT_MAX_WIDTH;
+        this.screenshotTruncateLines = false;
         this.entries = new ArrayList<>();
     }
 
@@ -101,6 +104,7 @@ public class RedactConfig {
                             Math.min(
                                     config.getInt(KEY_SCREENSHOT_MAX_WIDTH, DEFAULT_SCREENSHOT_MAX_WIDTH),
                                     MAX_SCREENSHOT_MAX_WIDTH));
+            this.screenshotTruncateLines = config.getBoolean(KEY_SCREENSHOT_TRUNCATE, false);
         } catch (ConfigurationException e) {
             LOGGER.warn("Failed to load redact config from {}", configFile.getAbsolutePath(), e);
         }
@@ -129,6 +133,7 @@ public class RedactConfig {
             config.setProperty(KEY_LIGHT_MODE, Boolean.valueOf(lightModeScreenshots));
             config.setProperty(KEY_OPTIMIZE_SPACE, Boolean.valueOf(optimizeScreenshotSpace));
             config.setProperty(KEY_SCREENSHOT_MAX_WIDTH, Integer.valueOf(screenshotMaxWidth));
+            config.setProperty(KEY_SCREENSHOT_TRUNCATE, Boolean.valueOf(screenshotTruncateLines));
             config.save(configFile);
         } catch (ConfigurationException e) {
             LOGGER.error("Failed to save redact config to {}", configFile.getAbsolutePath(), e);
@@ -199,6 +204,16 @@ public class RedactConfig {
     public void setScreenshotMaxWidth(int width) {
         this.screenshotMaxWidth =
                 Math.max(MIN_SCREENSHOT_MAX_WIDTH, Math.min(width, MAX_SCREENSHOT_MAX_WIDTH));
+    }
+
+    /** @return {@code true} if screenshot lines that exceed the pane width are truncated */
+    public boolean isScreenshotTruncateLines() {
+        return screenshotTruncateLines;
+    }
+
+    /** @param screenshotTruncateLines whether to truncate lines instead of wrapping them */
+    public void setScreenshotTruncateLines(boolean screenshotTruncateLines) {
+        this.screenshotTruncateLines = screenshotTruncateLines;
     }
 
     /**

@@ -25,6 +25,7 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Font;
 import java.awt.Graphics2D;
+import java.awt.Shape;
 import java.awt.Toolkit;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.StringSelection;
@@ -36,7 +37,6 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
-import java.security.AccessControlException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
@@ -89,7 +89,7 @@ import org.zaproxy.zap.utils.ZapXmlConfiguration;
  * <p>Each text pane has a context menu offering copy, Markdown export, cURL generation,
  * Request Editor integration, and screenshot capture (both to clipboard and to file).
  */
-public class CrimsonHttpPanel extends AbstractPanel {
+public final class CrimsonHttpPanel extends AbstractPanel {
 
     private static final long serialVersionUID = 1L;
 
@@ -98,6 +98,7 @@ public class CrimsonHttpPanel extends AbstractPanel {
     private static final Color COLOR_BG = new Color(40, 44, 52);
     private static final int MAX_STATUS_URI_LENGTH = 500;
     private static final int MAX_SCREENSHOT_HEIGHT = 16384;
+    private static final int NO_WRAP_WIDTH = 100_000;
 
     // Cached screenshot colours to avoid per-call allocation
     private static final Color COLOR_LABEL_DARK = new Color(220, 20, 60);
@@ -120,8 +121,8 @@ public class CrimsonHttpPanel extends AbstractPanel {
     private static ImageIcon iconVertical;
     private static ImageIcon iconHorizontal;
 
-    private final ExtensionCrimsonHttp extension;
-    private final HttpMessageRenderer renderer;
+    private final transient ExtensionCrimsonHttp extension;
+    private final transient HttpMessageRenderer renderer;
 
     private JTextPane requestPane;
     private JTextPane responsePane;
@@ -130,7 +131,7 @@ public class CrimsonHttpPanel extends AbstractPanel {
     private JPanel requestPanel;
     private JPanel responsePanel;
     private JButton toggleButton;
-    private volatile HttpMessage currentMessage;
+    private volatile transient HttpMessage currentMessage;
     private volatile boolean horizontal;
     private Timer dividerSaveTimer;
 
@@ -142,6 +143,7 @@ public class CrimsonHttpPanel extends AbstractPanel {
     public CrimsonHttpPanel(ExtensionCrimsonHttp extension) {
         this.extension = extension;
         this.renderer = new HttpMessageRenderer();
+        this.renderer.initAttributes();
         this.renderer.setRedactConfig(extension.getRedactConfig());
         this.horizontal = LayoutPrefs.loadHorizontal();
         initialize();
@@ -560,13 +562,13 @@ public class CrimsonHttpPanel extends AbstractPanel {
                             .getClass()
                             .getMethod(
                                     "displayMessage",
-                                    new Class[] {
+                                    new Class<?>[] {
                                         org.zaproxy.zap.extension.httppanel.Message.class
                                     });
             displayMethod.invoke(extRequester, new Object[] {clone});
             statusLabel.setText(
                     Constant.messages.getString("crimsonhttp.status.resendopened"));
-        } catch (AccessControlException e) {
+        } catch (SecurityException e) {
             statusLabel.setText("Permission denied");
         } catch (Exception e) {
             statusLabel.setText(
@@ -1085,6 +1087,7 @@ public class CrimsonHttpPanel extends AbstractPanel {
         RedactConfig displayConfig = extension.getRedactConfig();
         boolean lightMode = displayConfig.isLightModeScreenshots();
         boolean optimizeSpace = displayConfig.isOptimizeScreenshotSpace();
+        boolean truncateLines = displayConfig.isScreenshotTruncateLines();
         int maxWidth = displayConfig.getScreenshotMaxWidth();
 
         HttpMessageRenderer screenshotRenderer = buildScreenshotRenderer(displayConfig, lightMode);
@@ -1109,8 +1112,9 @@ public class CrimsonHttpPanel extends AbstractPanel {
         int dividerWidth = 4;
 
         // Measure content at the max available width to determine preferred sizes
-        offReq.setSize(maxWidth, Integer.MAX_VALUE);
-        offResp.setSize(maxWidth, Integer.MAX_VALUE);
+        int measureWidth = truncateLines ? NO_WRAP_WIDTH : maxWidth;
+        offReq.setSize(measureWidth, Integer.MAX_VALUE);
+        offResp.setSize(measureWidth, Integer.MAX_VALUE);
 
         int reqWidth, respWidth, reqHeight, respHeight, imageWidth, imageHeight;
 
@@ -1126,8 +1130,8 @@ public class CrimsonHttpPanel extends AbstractPanel {
                 reqWidth = contentWidth / 2;
                 respWidth = contentWidth / 2;
             }
-            offReq.setSize(reqWidth, Integer.MAX_VALUE);
-            offResp.setSize(respWidth, Integer.MAX_VALUE);
+            offReq.setSize(truncateLines ? NO_WRAP_WIDTH : reqWidth, Integer.MAX_VALUE);
+            offResp.setSize(truncateLines ? NO_WRAP_WIDTH : respWidth, Integer.MAX_VALUE);
             reqHeight =
                     Math.min(
                             offReq.getPreferredSize().height,
@@ -1145,8 +1149,8 @@ public class CrimsonHttpPanel extends AbstractPanel {
             int contentWidth = maxWidth - padding * 2;
             reqWidth = contentWidth;
             respWidth = contentWidth;
-            offReq.setSize(reqWidth, Integer.MAX_VALUE);
-            offResp.setSize(respWidth, Integer.MAX_VALUE);
+            offReq.setSize(truncateLines ? NO_WRAP_WIDTH : reqWidth, Integer.MAX_VALUE);
+            offResp.setSize(truncateLines ? NO_WRAP_WIDTH : respWidth, Integer.MAX_VALUE);
             reqHeight =
                     Math.min(
                             offReq.getPreferredSize().height,
@@ -1191,9 +1195,16 @@ public class CrimsonHttpPanel extends AbstractPanel {
                 g2d.setFont(labelFont);
                 g2d.drawString(reqLabel, padding + textInset, labelBaseline);
 
-                offReq.setBounds(0, 0, reqWidth, reqHeight);
+                offReq.setBounds(0, 0, truncateLines ? NO_WRAP_WIDTH : reqWidth, reqHeight);
                 g2d.translate(padding, padding + headerHeight);
-                offReq.paint(g2d);
+                if (truncateLines) {
+                    Shape prevClip = g2d.getClip();
+                    g2d.clipRect(0, 0, reqWidth, reqHeight);
+                    offReq.paint(g2d);
+                    g2d.setClip(prevClip);
+                } else {
+                    offReq.paint(g2d);
+                }
                 g2d.translate(-padding, -(padding + headerHeight));
 
                 g2d.setColor(dividerColor);
@@ -1204,9 +1215,16 @@ public class CrimsonHttpPanel extends AbstractPanel {
                 g2d.setFont(labelFont);
                 g2d.drawString(respLabel, respX + textInset, labelBaseline);
 
-                offResp.setBounds(0, 0, respWidth, respHeight);
+                offResp.setBounds(0, 0, truncateLines ? NO_WRAP_WIDTH : respWidth, respHeight);
                 g2d.translate(respX, padding + headerHeight);
-                offResp.paint(g2d);
+                if (truncateLines) {
+                    Shape prevClip = g2d.getClip();
+                    g2d.clipRect(0, 0, respWidth, respHeight);
+                    offResp.paint(g2d);
+                    g2d.setClip(prevClip);
+                } else {
+                    offResp.paint(g2d);
+                }
             } else {
                 int y = padding;
                 g2d.setColor(labelColor);
@@ -1214,9 +1232,16 @@ public class CrimsonHttpPanel extends AbstractPanel {
                 g2d.drawString(reqLabel, padding + textInset, y + 16);
                 y += headerHeight;
 
-                offReq.setBounds(0, 0, reqWidth, reqHeight);
+                offReq.setBounds(0, 0, truncateLines ? NO_WRAP_WIDTH : reqWidth, reqHeight);
                 g2d.translate(0, y);
-                offReq.paint(g2d);
+                if (truncateLines) {
+                    Shape prevClip = g2d.getClip();
+                    g2d.clipRect(0, 0, reqWidth, reqHeight);
+                    offReq.paint(g2d);
+                    g2d.setClip(prevClip);
+                } else {
+                    offReq.paint(g2d);
+                }
                 g2d.translate(0, -y);
                 y += reqHeight + padding;
 
@@ -1225,9 +1250,16 @@ public class CrimsonHttpPanel extends AbstractPanel {
                 g2d.drawString(respLabel, padding + textInset, y + 16);
                 y += headerHeight;
 
-                offResp.setBounds(0, 0, respWidth, respHeight);
+                offResp.setBounds(0, 0, truncateLines ? NO_WRAP_WIDTH : respWidth, respHeight);
                 g2d.translate(0, y);
-                offResp.paint(g2d);
+                if (truncateLines) {
+                    Shape prevClip = g2d.getClip();
+                    g2d.clipRect(0, 0, respWidth, respHeight);
+                    offResp.paint(g2d);
+                    g2d.setClip(prevClip);
+                } else {
+                    offResp.paint(g2d);
+                }
             }
         } finally {
             g2d.dispose();
@@ -1245,6 +1277,7 @@ public class CrimsonHttpPanel extends AbstractPanel {
         RedactConfig displayConfig = extension.getRedactConfig();
         boolean lightMode = displayConfig.isLightModeScreenshots();
         boolean optimizeSpace = displayConfig.isOptimizeScreenshotSpace();
+        boolean truncateLines = displayConfig.isScreenshotTruncateLines();
         int maxWidth = displayConfig.getScreenshotMaxWidth();
 
         HttpMessageRenderer screenshotRenderer = buildScreenshotRenderer(displayConfig, lightMode);
@@ -1266,12 +1299,12 @@ public class CrimsonHttpPanel extends AbstractPanel {
         int headerHeight = 24;
         int contentWidth = maxWidth - padding * 2;
 
-        offPane.setSize(contentWidth, Integer.MAX_VALUE);
+        offPane.setSize(truncateLines ? NO_WRAP_WIDTH : contentWidth, Integer.MAX_VALUE);
         int paneWidth =
                 optimizeSpace
                         ? Math.max(Math.min(offPane.getPreferredSize().width, contentWidth), 300)
                         : contentWidth;
-        offPane.setSize(paneWidth, Integer.MAX_VALUE);
+        offPane.setSize(truncateLines ? NO_WRAP_WIDTH : paneWidth, Integer.MAX_VALUE);
         int paneHeight = Math.min(offPane.getPreferredSize().height, 16352);
 
         int imageWidth = paneWidth + padding * 2;
@@ -1295,9 +1328,16 @@ public class CrimsonHttpPanel extends AbstractPanel {
             g2d.setFont(labelFont);
             g2d.drawString(label, padding + 4, padding + 16);
 
-            offPane.setBounds(0, 0, paneWidth, paneHeight);
+            offPane.setBounds(0, 0, truncateLines ? NO_WRAP_WIDTH : paneWidth, paneHeight);
             g2d.translate(padding, padding + headerHeight);
-            offPane.paint(g2d);
+            if (truncateLines) {
+                Shape prevClip = g2d.getClip();
+                g2d.clipRect(0, 0, paneWidth, paneHeight);
+                offPane.paint(g2d);
+                g2d.setClip(prevClip);
+            } else {
+                offPane.paint(g2d);
+            }
         } finally {
             g2d.dispose();
             offPane.removeNotify();
@@ -1324,8 +1364,6 @@ public class CrimsonHttpPanel extends AbstractPanel {
             RedactConfig displayConfig, boolean lightMode) {
         HttpMessageRenderer screenshotRenderer;
         if (lightMode) {
-            // The anonymous subclass overrides initAttributes(); Java calls the override during
-            // super-constructor execution, so no explicit call is needed here.
             screenshotRenderer =
                     new HttpMessageRenderer() {
                         @Override
@@ -1345,6 +1383,7 @@ public class CrimsonHttpPanel extends AbstractPanel {
         } else {
             screenshotRenderer = new HttpMessageRenderer();
         }
+        screenshotRenderer.initAttributes();
         RedactConfig screenshotConfig = new RedactConfig();
         screenshotConfig.setEnabled(displayConfig.isRedactScreenshots());
         screenshotConfig.setReplacementText(displayConfig.getReplacementText());

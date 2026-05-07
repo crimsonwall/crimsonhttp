@@ -79,11 +79,11 @@ public class HttpMessageRenderer {
     private RedactConfig redactConfig;
 
     /**
-     * Constructs a renderer with default One Dark colour attributes.
+     * Constructs a renderer. Callers must invoke {@link #initAttributes()} after construction to
+     * populate colour attributes (this keeps the constructor safe from virtual-dispatch
+     * this-escape on overridable methods).
      */
-    public HttpMessageRenderer() {
-        initAttributes();
-    }
+    public HttpMessageRenderer() {}
 
     /**
      * @param config the redaction configuration to use; {@code null} disables redaction

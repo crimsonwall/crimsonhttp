@@ -1,6 +1,6 @@
 <zapaddon>
     <name>Crimson HTTP</name>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <status>beta</status>
     <description>Pretty-prints and colour-codes HTTP request/response messages.</description>
     <author>CrimsonWall</author>
