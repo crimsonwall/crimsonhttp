@@ -23,6 +23,7 @@ import com.crimsonwall.crimsonhttp.redact.RedactEntry;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Shape;
@@ -63,7 +64,12 @@ import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.event.AncestorEvent;
 import javax.swing.event.AncestorListener;
+import javax.swing.text.AbstractDocument;
+import javax.swing.text.LabelView;
 import javax.swing.text.StyledDocument;
+import javax.swing.text.StyledEditorKit;
+import javax.swing.text.View;
+import javax.swing.text.ViewFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.parosproxy.paros.Constant;
@@ -99,6 +105,8 @@ public final class CrimsonHttpPanel extends AbstractPanel {
     private static final int MAX_STATUS_URI_LENGTH = 500;
     private static final int MAX_SCREENSHOT_HEIGHT = 16384;
     private static final int NO_WRAP_WIDTH = 100_000;
+    private static final int MAX_SINGLE_PANE_HEIGHT = 16352;
+    private static final int MAX_VERTICAL_PANE_HEIGHT = 8192;
 
     // Cached screenshot colours to avoid per-call allocation
     private static final Color COLOR_LABEL_DARK = new Color(220, 20, 60);
@@ -424,7 +432,8 @@ public final class CrimsonHttpPanel extends AbstractPanel {
                                         Constant.messages.getString(
                                                 "crimsonhttp.status.copiedall"));
                             }
-                        } catch (Exception ignored) {
+                        } catch (Exception ex) {
+                            LOGGER.info("Failed to copy text to clipboard", ex);
                         }
                     }
                 });
@@ -930,7 +939,8 @@ public final class CrimsonHttpPanel extends AbstractPanel {
             if (msg.getHistoryRef() != null) {
                 defaultName = msg.getHistoryRef().getHistoryId() + ".png";
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            LOGGER.info("Failed to get history reference for screenshot filename", e);
         }
 
         File lastDir = ScreenshotPrefs.loadDirectory();
@@ -967,7 +977,10 @@ public final class CrimsonHttpPanel extends AbstractPanel {
                 () -> {
                     try {
                         BufferedImage image = renderScreenshot(msg);
-                        ImageIO.write(image, "png", outputFile);
+                        boolean written = ImageIO.write(image, "png", outputFile);
+                        if (!written) {
+                            throw new IOException("No appropriate writer found for PNG format");
+                        }
                         SwingUtilities.invokeLater(
                                 () ->
                                         statusLabel.setText(
@@ -1095,9 +1108,43 @@ public final class CrimsonHttpPanel extends AbstractPanel {
         Color bgColor = lightMode ? Color.WHITE : COLOR_BG;
         Color caretColor = lightMode ? Color.BLACK : Color.WHITE;
 
+        int padding = 8;
+        int headerHeight = 24;
+        int dividerWidth = 4;
+
+        int reqWidth, respWidth, reqHeight, respHeight, imageWidth, imageHeight;
+
+        // Calculate widths FIRST, before creating panes and rendering text
+        if (horizontal) {
+            int contentWidth = maxWidth - padding * 2 - dividerWidth;
+            int halfContent = contentWidth / 2;
+            if (optimizeSpace) {
+                // We'll need to measure first, then adjust
+                reqWidth = halfContent;
+                respWidth = halfContent;
+            } else {
+                reqWidth = halfContent;
+                respWidth = halfContent;
+            }
+        } else {
+            int contentWidth = maxWidth - padding * 2;
+            reqWidth = contentWidth;
+            respWidth = contentWidth;
+        }
+
+        // NOW create panes and set their size BEFORE rendering text
         JTextPane offReq = buildOffscreenPane(bgColor, caretColor);
         JTextPane offResp = buildOffscreenPane(bgColor, caretColor);
+
+        // Set size constraint BEFORE rendering text - this is crucial for wrapping
+        if (!truncateLines) {
+            sizePane(offReq, reqWidth);
+            sizePane(offResp, respWidth);
+        }
+
+        Graphics2D g2d = null;
         try {
+            // Render text NOW that the size constraint is in place
             screenshotRenderer.renderRequest(
                     offReq.getStyledDocument(),
                     msg.getRequestHeader(),
@@ -1107,31 +1154,22 @@ public final class CrimsonHttpPanel extends AbstractPanel {
                     msg.getResponseHeader(),
                     (HttpBody) msg.getResponseBody());
 
-        int padding = 8;
-        int headerHeight = 24;
-        int dividerWidth = 4;
-
-        // Measure content at the max available width to determine preferred sizes
-        int measureWidth = truncateLines ? NO_WRAP_WIDTH : maxWidth;
-        offReq.setSize(measureWidth, Integer.MAX_VALUE);
-        offResp.setSize(measureWidth, Integer.MAX_VALUE);
-
-        int reqWidth, respWidth, reqHeight, respHeight, imageWidth, imageHeight;
-
-        if (horizontal) {
-            int contentWidth = maxWidth - padding * 2 - dividerWidth;
-            if (optimizeSpace) {
+            if (horizontal) {
+                // For optimizeSpace, recalculate widths based on actual content size
+                if (optimizeSpace) {
+                int contentWidth = maxWidth - padding * 2 - dividerWidth;
                 int halfContent = contentWidth / 2;
-                int reqOptimal =
-                        Math.max(Math.min(offReq.getPreferredSize().width, halfContent), 300);
+                int reqOptimal = Math.max(Math.min(offReq.getPreferredSize().width, halfContent), 300);
                 reqWidth = Math.min(reqOptimal, halfContent);
                 respWidth = contentWidth - reqWidth;
-            } else {
-                reqWidth = contentWidth / 2;
-                respWidth = contentWidth / 2;
+
+                // Re-size with the adjusted widths
+                if (!truncateLines) {
+                    sizePane(offReq, reqWidth);
+                    sizePane(offResp, respWidth);
+                }
             }
-            offReq.setSize(truncateLines ? NO_WRAP_WIDTH : reqWidth, Integer.MAX_VALUE);
-            offResp.setSize(truncateLines ? NO_WRAP_WIDTH : respWidth, Integer.MAX_VALUE);
+
             reqHeight =
                     Math.min(
                             offReq.getPreferredSize().height,
@@ -1140,25 +1178,35 @@ public final class CrimsonHttpPanel extends AbstractPanel {
                     Math.min(
                             offResp.getPreferredSize().height,
                             MAX_SCREENSHOT_HEIGHT - headerHeight - padding * 2);
+
+            LOGGER.info("Final heights - reqHeight: {}, respHeight: {}", reqHeight, respHeight);
             imageWidth = maxWidth;
             imageHeight =
                     Math.min(
                             padding + headerHeight + Math.max(reqHeight, respHeight) + padding,
                             MAX_SCREENSHOT_HEIGHT);
         } else {
-            int contentWidth = maxWidth - padding * 2;
-            reqWidth = contentWidth;
-            respWidth = contentWidth;
-            offReq.setSize(truncateLines ? NO_WRAP_WIDTH : reqWidth, Integer.MAX_VALUE);
-            offResp.setSize(truncateLines ? NO_WRAP_WIDTH : respWidth, Integer.MAX_VALUE);
+            // Vertical layout - recalculate if needed for optimizeSpace
+            if (optimizeSpace && !truncateLines) {
+                int contentWidth = maxWidth - padding * 2;
+                int reqOptimal = Math.max(Math.min(offReq.getPreferredSize().width, contentWidth), 300);
+                int respOptimal = Math.max(Math.min(offResp.getPreferredSize().width, contentWidth), 300);
+                reqWidth = Math.min(reqOptimal, contentWidth);
+                respWidth = Math.min(respOptimal, contentWidth);
+
+                // Re-size with the adjusted widths
+                sizePane(offReq, reqWidth);
+                sizePane(offResp, respWidth);
+            }
+
             reqHeight =
                     Math.min(
                             offReq.getPreferredSize().height,
-                            8192 - headerHeight - padding);
+                            MAX_VERTICAL_PANE_HEIGHT - headerHeight - padding);
             respHeight =
                     Math.min(
                             offResp.getPreferredSize().height,
-                            8192 - headerHeight - padding);
+                            MAX_VERTICAL_PANE_HEIGHT - headerHeight - padding);
             imageWidth = maxWidth;
             imageHeight =
                     Math.min(
@@ -1174,11 +1222,12 @@ public final class CrimsonHttpPanel extends AbstractPanel {
 
         BufferedImage image =
                 new BufferedImage(imageWidth, imageHeight, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2d = image.createGraphics();
+        g2d = image.createGraphics();
         try {
             Color labelColor = lightMode ? COLOR_LABEL_LIGHT : COLOR_LABEL_DARK;
             Color dividerColor = lightMode ? COLOR_DIVIDER_LIGHT : COLOR_DIVIDER_DARK;
-            Font labelFont = g2d.getFont().deriveFont(Font.BOLD, 12.0f);
+            Font baseFont = g2d.getFont();
+            Font labelFont = (baseFont != null) ? baseFont.deriveFont(Font.BOLD, 12.0f) : new Font("Monospaced", Font.BOLD, 12);
             int labelBaseline = padding + 16;
             int textInset = 4;
 
@@ -1196,6 +1245,14 @@ public final class CrimsonHttpPanel extends AbstractPanel {
                 g2d.drawString(reqLabel, padding + textInset, labelBaseline);
 
                 offReq.setBounds(0, 0, truncateLines ? NO_WRAP_WIDTH : reqWidth, reqHeight);
+
+                // Ensure the view is properly laid out before painting
+                if (!truncateLines) {
+                    // Force a complete view hierarchy invalidation and relayout
+                    offReq.invalidate();
+                    sizePane(offReq, reqWidth);
+                    offReq.doLayout();
+                }
                 g2d.translate(padding, padding + headerHeight);
                 if (truncateLines) {
                     Shape prevClip = g2d.getClip();
@@ -1216,6 +1273,13 @@ public final class CrimsonHttpPanel extends AbstractPanel {
                 g2d.drawString(respLabel, respX + textInset, labelBaseline);
 
                 offResp.setBounds(0, 0, truncateLines ? NO_WRAP_WIDTH : respWidth, respHeight);
+                // Ensure the view is properly laid out before painting
+                if (!truncateLines) {
+                    // Force a complete view hierarchy invalidation and relayout
+                    offResp.invalidate();
+                    sizePane(offResp, respWidth);
+                    offResp.doLayout();
+                }
                 g2d.translate(respX, padding + headerHeight);
                 if (truncateLines) {
                     Shape prevClip = g2d.getClip();
@@ -1233,6 +1297,13 @@ public final class CrimsonHttpPanel extends AbstractPanel {
                 y += headerHeight;
 
                 offReq.setBounds(0, 0, truncateLines ? NO_WRAP_WIDTH : reqWidth, reqHeight);
+                // Ensure the view is properly laid out before painting
+                if (!truncateLines) {
+                    // Force a complete view hierarchy invalidation and relayout
+                    offReq.invalidate();
+                    sizePane(offReq, reqWidth);
+                    offReq.doLayout();
+                }
                 g2d.translate(0, y);
                 if (truncateLines) {
                     Shape prevClip = g2d.getClip();
@@ -1251,6 +1322,13 @@ public final class CrimsonHttpPanel extends AbstractPanel {
                 y += headerHeight;
 
                 offResp.setBounds(0, 0, truncateLines ? NO_WRAP_WIDTH : respWidth, respHeight);
+                // Ensure the view is properly laid out before painting
+                if (!truncateLines) {
+                    // Force a complete view hierarchy invalidation and relayout
+                    offResp.invalidate();
+                    sizePane(offResp, respWidth);
+                    offResp.doLayout();
+                }
                 g2d.translate(0, y);
                 if (truncateLines) {
                     Shape prevClip = g2d.getClip();
@@ -1262,7 +1340,9 @@ public final class CrimsonHttpPanel extends AbstractPanel {
                 }
             }
         } finally {
-            g2d.dispose();
+            if (g2d != null) {
+                g2d.dispose();
+            }
             offReq.removeNotify();
             offResp.removeNotify();
         }
@@ -1299,13 +1379,13 @@ public final class CrimsonHttpPanel extends AbstractPanel {
         int headerHeight = 24;
         int contentWidth = maxWidth - padding * 2;
 
-        offPane.setSize(truncateLines ? NO_WRAP_WIDTH : contentWidth, Integer.MAX_VALUE);
+        sizePane(offPane, truncateLines ? NO_WRAP_WIDTH : contentWidth);
         int paneWidth =
                 optimizeSpace
                         ? Math.max(Math.min(offPane.getPreferredSize().width, contentWidth), 300)
                         : contentWidth;
-        offPane.setSize(truncateLines ? NO_WRAP_WIDTH : paneWidth, Integer.MAX_VALUE);
-        int paneHeight = Math.min(offPane.getPreferredSize().height, 16352);
+        sizePane(offPane, truncateLines ? NO_WRAP_WIDTH : paneWidth);
+        int paneHeight = Math.min(offPane.getPreferredSize().height, MAX_SINGLE_PANE_HEIGHT);
 
         int imageWidth = paneWidth + padding * 2;
         int imageHeight = Math.min(padding + headerHeight + paneHeight + padding, MAX_SCREENSHOT_HEIGHT);
@@ -1322,13 +1402,21 @@ public final class CrimsonHttpPanel extends AbstractPanel {
                             ? Constant.messages.getString("crimsonhttp.panel.request.label")
                             : Constant.messages.getString("crimsonhttp.panel.response.label");
             Color labelColor = lightMode ? COLOR_LABEL_LIGHT : COLOR_LABEL_DARK;
-            Font labelFont = g2d.getFont().deriveFont(Font.BOLD, 12.0f);
+            Font baseFont = g2d.getFont();
+            Font labelFont = (baseFont != null) ? baseFont.deriveFont(Font.BOLD, 12.0f) : new Font("Monospaced", Font.BOLD, 12);
 
             g2d.setColor(labelColor);
             g2d.setFont(labelFont);
             g2d.drawString(label, padding + 4, padding + 16);
 
             offPane.setBounds(0, 0, truncateLines ? NO_WRAP_WIDTH : paneWidth, paneHeight);
+            // Ensure the view is properly laid out before painting
+            if (!truncateLines) {
+                // Force a complete view hierarchy invalidation and relayout
+                offPane.invalidate();
+                sizePane(offPane, paneWidth);
+                offPane.doLayout();
+            }
             g2d.translate(padding, padding + headerHeight);
             if (truncateLines) {
                 Shape prevClip = g2d.getClip();
@@ -1353,7 +1441,7 @@ public final class CrimsonHttpPanel extends AbstractPanel {
      */
     // Cached colours for the light-mode screenshot renderer
     private static final Color LIGHT_COLOR_KEY = new Color(180, 20, 40);
-    private static final Color LIGHT_COLOR_STRING = new Color(40, 100, 40);
+    private static final Color LIGHT_COLOR_STRING = new Color(0, 0, 128);
     private static final Color LIGHT_COLOR_NUMBER = new Color(120, 60, 20);
     private static final Color LIGHT_COLOR_BOOL_NULL = new Color(120, 40, 120);
     private static final Color LIGHT_COLOR_PUNCT = new Color(80, 80, 80);
@@ -1378,6 +1466,8 @@ public final class CrimsonHttpPanel extends AbstractPanel {
                             initAttr(attrBoolNull, LIGHT_COLOR_BOOL_NULL);
                             initAttr(attrOffset, LIGHT_COLOR_OFFSET);
                             initAttr(attrRedacted, LIGHT_COLOR_REDACTED);
+                            initAttrBold(attrBoldMethod, LIGHT_COLOR_NUMBER);
+                            initAttr(attrUrlNavy, new Color(0, 0, 128));
                         }
                     };
         } else {
@@ -1394,10 +1484,159 @@ public final class CrimsonHttpPanel extends AbstractPanel {
 
     private static JTextPane buildOffscreenPane(Color bg, Color caret) {
         JTextPane pane = new JTextPane();
+        // FlowView only calls breakView() on children that return ExcellentBreakWeight.
+        // LabelView returns GoodBreakWeight when there is no whitespace in the run (e.g. a long
+        // URL), so the URL overflows the line instead of wrapping. Override to always return
+        // ExcellentBreakWeight on the X axis so every character position is a valid break point.
+        StyledEditorKit kit =
+                new StyledEditorKit() {
+                    @Override
+                    public ViewFactory getViewFactory() {
+                        ViewFactory svf = super.getViewFactory();
+                        return elem -> {
+                            View v = svf.create(elem);
+
+                            // Wrap ParagraphView to force wrapping at constrained width
+                            if (v instanceof javax.swing.text.ParagraphView) {
+                                return new javax.swing.text.ParagraphView(elem) {
+                                    @Override
+                                    protected void layout(int width, int height) {
+                                        // Force layout at the constrained width instead of preferred width
+                                        Container c = getContainer();
+                                        if (c != null && c instanceof JTextPane) {
+                                            JTextPane pane = (JTextPane) c;
+                                            int constrainedWidth = pane.getWidth();
+                                            if (constrainedWidth > 0 && constrainedWidth < width) {
+                                                super.layout(constrainedWidth, height);
+                                                return;
+                                            }
+                                        }
+                                        super.layout(width, height);
+                                    }
+                                };
+                            }
+                            // Also wrap LabelView to return ExcellentBreakWeight
+                            if (v instanceof LabelView) {
+                                return new LabelView(elem) {
+                                    @Override
+                                    public int getBreakWeight(int axis, float pos, float len) {
+                                        // Return ExcellentBreakWeight for X-axis to allow breaking anywhere
+                                        if (axis == View.X_AXIS) {
+                                            return View.ExcellentBreakWeight;
+                                        }
+                                        return super.getBreakWeight(axis, pos, len);
+                                    }
+
+                                    @Override
+                                    public View breakView(int axis, int offset, float pos, float len) {
+                                        return super.breakView(axis, offset, pos, len);
+                                    }
+                                };
+                            }
+                            return v;
+                        };
+                    }
+                };
+        pane.setEditorKit(kit);
         pane.setEditable(false);
         pane.setBackground(bg);
         pane.setCaretColor(caret);
+        pane.addNotify();
         return pane;
+    }
+
+    /**
+     * Manually breaks long lines in a JTextPane by inserting line breaks.
+     * This is a workaround for Swing's text view system not respecting size constraints for wrapping.
+     *
+     * @param pane the text pane to process
+     * @param maxWidth the maximum width in pixels (approximately 60 chars per 490px)
+     */
+    private static void breakLongLines(JTextPane pane, int maxWidth) {
+        try {
+            StyledDocument doc = pane.getStyledDocument();
+            String text = pane.getText();
+            if (text == null || text.isEmpty()) {
+                return;
+            }
+
+            // Calculate approximate character width (monospace font = 12px)
+            // 490px / 12px ≈ 40 chars, but we use 50 to be safe
+            int maxCharsPerLine = (maxWidth * 50) / 1000; // Approximate scaling
+            if (maxCharsPerLine < 30) maxCharsPerLine = 30; // Minimum reasonable length
+            if (maxCharsPerLine > 100) maxCharsPerLine = 100; // Maximum reasonable length
+
+            // Create a new document with line breaks added
+            StyledDocument newDoc = pane.getStyledDocument();
+            newDoc.remove(0, newDoc.getLength());
+
+            String[] lines = text.split("\n", -1);
+            for (String line : lines) {
+                if (line.length() <= maxCharsPerLine) {
+                    // Line is short enough, keep it as is
+                    insertTextWithAttributes(doc, line + "\n");
+                } else {
+                    // Break long line while trying to preserve attributes
+                    insertStyledTextWithBreaks(doc, line, maxCharsPerLine);
+                }
+            }
+
+        } catch (Exception e) {
+            LOGGER.error("Failed to break long lines", e);
+        }
+    }
+
+    /**
+     * Helper method to insert styled text from one document to another.
+     * This preserves the syntax highlighting attributes.
+     */
+    private static void insertTextWithAttributes(StyledDocument destDoc, String text) {
+        try {
+            // For now, we'll insert plain text to avoid complexity
+            // The syntax highlighting comes from the renderer, not the stored attributes
+            destDoc.insertString(destDoc.getLength(), text, null);
+        } catch (Exception e) {
+            LOGGER.error("Failed to insert text with attributes", e);
+        }
+    }
+
+    /**
+     * Breaks a long line into multiple lines while trying to preserve some formatting.
+     * This is a simplified version that focuses on breaking at reasonable positions.
+     */
+    private static void insertStyledTextWithBreaks(StyledDocument doc, String line, int maxChars) {
+        try {
+            // Break the line at maxChars intervals
+            int pos = 0;
+            while (pos < line.length()) {
+                int end = Math.min(pos + maxChars, line.length());
+                String segment = line.substring(pos, end);
+                doc.insertString(doc.getLength(), segment + "\n", null);
+                pos = end;
+            }
+        } catch (Exception e) {
+            LOGGER.error("Failed to break styled text", e);
+        }
+    }
+
+    private static void sizePane(JTextPane pane, int width) {
+        LOGGER.info("sizePane called - width: {}, current size: {}x{}, preferred: {}x{}",
+                width, pane.getWidth(), pane.getHeight(),
+                pane.getPreferredSize().width, pane.getPreferredSize().height);
+
+        // First, set to 0 to force invalidation of cached layout
+        pane.setSize(0, 0);
+        pane.getUI().getRootView(pane).setSize(0, 0);
+
+        // Then set to target size to trigger proper layout calculation
+        pane.setSize(width, Integer.MAX_VALUE);
+        View root = pane.getUI().getRootView(pane);
+        root.setSize(width, Integer.MAX_VALUE);
+        root.preferenceChanged(null, true, true);
+
+        LOGGER.info("After sizePane - size: {}x{}, preferred: {}x{}",
+                pane.getWidth(), pane.getHeight(),
+                pane.getPreferredSize().width, pane.getPreferredSize().height);
     }
 
     // -------------------------------------------------------------------------

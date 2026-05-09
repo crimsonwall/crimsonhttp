@@ -180,7 +180,7 @@ public class RedactStorage {
         defaults.add(
                 new RedactEntry(
                         "Generic Secret Assignment",
-                        "(?i)(?:password|secret|apikey|api_key|token|auth)\\s*[=:]\\s*['\"]?[A-Za-z0-9_\\-]{16,}['\"]?",
+                        "(?i)(?:password|secret|apikey|api_key|token|refresh_token|access_token|auth)\\s*[=:]\\s*['\"]?[A-Za-z0-9_\\-]{16,}['\"]?",
                         true));
         return defaults;
     }

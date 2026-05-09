@@ -75,6 +75,10 @@ public class HttpMessageRenderer {
     protected final SimpleAttributeSet attrRedacted = new SimpleAttributeSet();
     protected final SimpleAttributeSet attrBoolNull = new SimpleAttributeSet();
     protected final SimpleAttributeSet attrOffset = new SimpleAttributeSet();
+    /** Bold HTTP method (GET, POST, etc.) */
+    protected final SimpleAttributeSet attrBoldMethod = new SimpleAttributeSet();
+    /** Navy blue URL */
+    protected final SimpleAttributeSet attrUrlNavy = new SimpleAttributeSet();
 
     private RedactConfig redactConfig;
 
@@ -109,6 +113,8 @@ public class HttpMessageRenderer {
         initAttr(attrBoolNull, COLOR_BOOL_NULL);
         initAttr(attrOffset, COLOR_OFFSET);
         initAttr(attrRedacted, COLOR_REDACTED);
+        initAttrBold(attrBoldMethod, COLOR_NUMBER);
+        initAttr(attrUrlNavy, new Color(0, 0, 128));
     }
 
     /**
@@ -121,6 +127,19 @@ public class HttpMessageRenderer {
         StyleConstants.setFontFamily(attr, "Monospaced");
         StyleConstants.setFontSize(attr, 12);
         StyleConstants.setForeground(attr, fg);
+    }
+
+    /**
+     * Configures a single attribute set with monospaced font, bold style, and the given foreground colour.
+     *
+     * @param attr the attribute set to configure
+     * @param fg the foreground colour
+     */
+    protected void initAttrBold(SimpleAttributeSet attr, Color fg) {
+        StyleConstants.setFontFamily(attr, "Monospaced");
+        StyleConstants.setFontSize(attr, 12);
+        StyleConstants.setForeground(attr, fg);
+        StyleConstants.setBold(attr, true);
     }
 
     /**
@@ -145,14 +164,14 @@ public class HttpMessageRenderer {
             }
             String version = header.getVersion();
 
-            appendText(doc, (method != null) ? method : "GET", attrAccent);
+            appendText(doc, (method != null) ? method : "GET", attrBoldMethod);
             appendText(doc, " ", attrPunct);
 
             if (uri != null) {
                 appendRedactedText(
                         doc,
                         (uri.length() > MAX_URI_LENGTH) ? (uri.substring(0, MAX_URI_LENGTH) + "...") : uri,
-                        attrPunct);
+                        attrUrlNavy);
             } else {
                 appendText(doc, "/", attrPunct);
             }
