@@ -1,6 +1,6 @@
 <zapaddon>
     <name>CrimsonView</name>
-    <version>1.0.2</version>
+    <version>1.0.3</version>
     <status>beta</status>
     <description>Generate document-ready screenshots for penetration testing reports with automatic redaction, annotations, and light/dark theme export.</description>
     <author>CrimsonWall</author>

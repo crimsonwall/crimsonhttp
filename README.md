@@ -2,7 +2,7 @@
 
 **Document-ready screenshots for penetration testers, without the pain.**
 
-![CrimsonView](https://img.shields.io/badge/version-1.0.2--beta-red)
+![CrimsonView](https://img.shields.io/badge/version-1.0.3--beta-red)
 ![ZAP](https://img.shields.io/badge/ZAP-2.17.0%2B-blue)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green)
 
@@ -135,7 +135,7 @@ cd crimsonview
 ./gradlew build
 ```
 
-The output file `crimsonview-release-1.0.2.zap` is located in `build/zapAddOn/bin/`.
+The output file `crimsonview-release-1.0.3.zap` is located in `build/zapAddOn/bin/`.
 
 ### Additional Build Options
 
