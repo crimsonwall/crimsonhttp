@@ -7,18 +7,18 @@ plugins {
     alias(libs.plugins.zaproxy.common)
 }
 
-description = "Pretty-prints and colour-codes HTTP request/response messages."
+description = "Generate document-ready screenshots for penetration testing reports with automatic redaction, annotations, and light/dark theme export."
 
 zapAddOn {
-    addOnName.set("Crimson HTTP")
+    addOnName.set("CrimsonView")
     addOnStatus.set(AddOnStatus.BETA)
 
     manifest {
         zapVersion.set("2.17.0")
         author.set("Renico Koen / CrimsonWall")
-        url.set("https://github.com/crimsonwall/crimsonhttp")
+        url.set("https://github.com/crimsonwall/crimsonview")
         extensions {
-            register("com.crimsonwall.crimsonhttp.ExtensionCrimsonHttp")
+            register("com.crimsonwall.crimsonview.ExtensionCrimsonView")
         }
     }
 }
@@ -51,7 +51,7 @@ spotless {
         licenseHeader(
             """
             /*
-             * Crimson HTTP - HTTP Request/Response Viewer for ZAP.
+             * CrimsonView - Document-Ready HTTP Screenshots for ZAP.
              *
              * Renico Koen / Crimson Wall / 2026
              *
